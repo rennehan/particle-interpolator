@@ -33,14 +33,15 @@ int real_idx(int idx, int N_cell)
     return idx;
 }
 
-double interpolate_to_grid(double *pos_x,
-                           double *pos_y,
-                           double *pos_z, 
-                           double *radii,
-                           double *quantities,
-                           double *weights,
-                           int N_cell,
-                           int N_particles)
+void interpolate_to_grid(char tmp_file_name[],
+                         double *pos_x,
+                         double *pos_y,
+                         double *pos_z, 
+                         double *radii,
+                         double *quantities,
+                         double *weights,
+                         int N_cell,
+                         int N_particles)
 {
     int i, j, k, l;
     double U[N_cell];
@@ -144,9 +145,9 @@ double interpolate_to_grid(double *pos_x,
                     deposit_y[running_idx] = 0;
                     deposit_z[running_idx] = 0;
 
-                    if (r < radii[i])
+                    if (distance < radii[i])
                     {
-                        temp_weights[running_idx] = cubic_kernel(r / radii[i], 1.0 / (radii[i] * radii[i] * radii[i]));
+                        temp_weights[running_idx] = cubic_kernel(distance / radii[i], 1.0 / (radii[i] * radii[i] * radii[i]));
                         sum_weights += temp_weights[running_idx];
                         deposit_x[running_idx] = U[x_idx] / delta;
                         deposit_y[running_idx] = U[y_idx] / delta;
@@ -168,9 +169,36 @@ double interpolate_to_grid(double *pos_x,
 
             map[x_idx][y_idx][z_idx] += weights[i] * quantities[i] * temp_weights[j];
             map_weights[x_idx][y_idx][z_idx] += weights[i] * temp_weights[j]
+        }    
+    }
+
+    /* Now we find all of the non-zero entries and write them to a temporary file */
+    FILE * tmp_file;
+
+    if ((tmp_file = fopen(tmp_file_name, "w")) == NULL)
+    {
+        printf("Cannot open temporary file %s\n", tmp_file_name);
+        exit(-1);
+    }
+
+    for (i = 0; i < N_cell; i++)
+    {
+        for (j = 0; j < N_cell; j++)
+        {
+            for (k = 0; k < N_cell; k++)
+            {
+                if (map[i][j][k] == 0)
+                {
+                    continue;
+                }
+
+                fprintf(tmp_file, "%d\t%d\t%d\t%g\t%g\n", i, j, k, map[i][j][k], map_weights[i][j][k]);
+            }
         }
     }
 
-    
+    fclose(tmp_file);
+
+    return;
 }
 
