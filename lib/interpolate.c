@@ -70,9 +70,9 @@ void interpolate_to_grid(char tmp_file_name[],
     /* Important that we assume all coordinates are within [0,1] */
     for (i = 0; i < N_particles; i++)
     {
-        if (radii[i] < min_radius)
+        if (radii[i] < delta)
         {
-            radii[i] = min_radius;
+            radii[i] = 2.0 * delta;
         }
 
         /* These are the indices in the U vector */
