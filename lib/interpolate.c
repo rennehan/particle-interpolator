@@ -1,6 +1,7 @@
 #include "interpolate.h"
 #include <math.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 double cubic_kernel(double u, double hinv3)
 {
@@ -46,13 +47,15 @@ void interpolate_to_grid(char tmp_file_name[],
     int i, j, k, l;
     double U[N_cell];
 
+    int N_cell2 = N_cell * N_cell;
     double size = 1;
     double min = 0;
     double half = 0.5;
     double delta = size / N_cell;
 
-    double map[N_cell][N_cell][N_cell], map_weights[N_cell][N_cell][N_cell];
- 
+    double *map = (double *)malloc(N_cell * N_cell * N_cell * sizeof(double));
+    double *map_weights = (double *)malloc(N_cell * N_cell * N_cell * sizeof(double));
+
     for (i = 0; i < N_cell; i++)
     {
         U[i] = min + (i + 0.5) * delta;
@@ -61,12 +64,16 @@ void interpolate_to_grid(char tmp_file_name[],
         {
             for (k = 0; k < N_cell; k++)
             {
-                map[i][j][k] = 0;
-                map_weights[i][j][k] = 0;
+                map[i + N_cell * j + N_cell2 * k] = 0;
+                map_weights[i + N_cell * j * N_cell2 * k] = 0;
             }
         }
     }
- 
+
+    printf("Loop over %d particles.\n", N_particles);
+    free(map_weights);
+    free(map);
+    exit(-1); 
     /* Important that we assume all coordinates are within [0,1] */
     for (i = 0; i < N_particles; i++)
     {
@@ -88,15 +95,19 @@ void interpolate_to_grid(char tmp_file_name[],
         int total_cell_chunk = (max_x - min_x) + (max_y - min_y) + (max_z - min_z);
 
         int deposit_x[total_cell_chunk], deposit_y[total_cell_chunk], deposit_z[total_cell_chunk];
-        double temp_weights[total_cell_chunk]
+        double temp_weights[total_cell_chunk];
         double sum_weights = 0;
 
-        double x_diff = y_diff = z_diff = 0;
-        int x_idx = y_idx = z_idx = 0;
+        double x_diff = 0, y_diff = 0, z_diff = 0;
+        int x_idx = 0, y_idx = 0, z_idx = 0;
 
         int running_idx = 0;
 
-        for (j = min_x; j < max_x; j++)
+        printf("Loop over map chunk.\n");
+
+        exit(-1);
+
+        for (j = min_x; j <= max_x; j++)
         {
             x_idx = real_idx(j, N_cell);
             x_diff = pos_x[i] - U[x_idx];
@@ -110,7 +121,7 @@ void interpolate_to_grid(char tmp_file_name[],
                 x_diff = pos_x[i] + size - U[x_idx];
             }
 
-            for (k = min_y; k < max_y; k++)
+            for (k = min_y; k <= max_y; k++)
             {
                 y_idx = real_idx(k, N_cell);
                 y_diff = pos_y[i] - U[y_idx];
@@ -124,7 +135,7 @@ void interpolate_to_grid(char tmp_file_name[],
                     y_diff = pos_y[i] + size - U[y_idx];
                 }
 
-                for (l = min_z; l < max_z; l++)
+                for (l = min_z; l <= max_z; l++)
                 {
                     z_idx = real_idx(l, N_cell);
                     z_diff = pos_z[i] - U[z_idx];
@@ -138,7 +149,7 @@ void interpolate_to_grid(char tmp_file_name[],
                         z_diff = pos_z[i] + size - U[z_idx];
                     }
 
-                    distance = sqrt(x_diff * x_diff + y_diff * y_diff + z_diff * z_diff);
+                    double distance = sqrt(x_diff * x_diff + y_diff * y_diff + z_diff * z_diff);
 
                     temp_weights[running_idx] = 0;
                     deposit_x[running_idx] = 0;
@@ -159,6 +170,8 @@ void interpolate_to_grid(char tmp_file_name[],
             }
         }
 
+        printf("Add quantities to map.\n");
+
         /* Add quantites to the chunk of cells where they belong */
         for (j = 0; j < running_idx; j++)
         {
@@ -167,10 +180,13 @@ void interpolate_to_grid(char tmp_file_name[],
             y_idx = deposit_y[j];
             z_idx = deposit_z[j];
 
-            map[x_idx][y_idx][z_idx] += weights[i] * quantities[i] * temp_weights[j];
-            map_weights[x_idx][y_idx][z_idx] += weights[i] * temp_weights[j]
+            
+            map[x_idx + N_cell * y_idx + N_cell2 * z_idx]  += weights[i] * quantities[i] * temp_weights[j];
+            map_weights[x_idx + N_cell * y_idx + N_cell2 * z_idx] += weights[i] * temp_weights[j];
         }    
     }
+
+    printf("Write to file.\n");
 
     /* Now we find all of the non-zero entries and write them to a temporary file */
     FILE * tmp_file;
@@ -187,17 +203,21 @@ void interpolate_to_grid(char tmp_file_name[],
         {
             for (k = 0; k < N_cell; k++)
             {
-                if (map[i][j][k] == 0)
+                if (map[i + N_cell * j + N_cell2 * k] == 0)
                 {
                     continue;
                 }
 
-                fprintf(tmp_file, "%d\t%d\t%d\t%g\t%g\n", i, j, k, map[i][j][k], map_weights[i][j][k]);
+                fprintf(tmp_file, "%d\t%d\t%d\t%g\t%g\n", i, j, k, map[i + N_cell * j + N_cell2 * k], 
+                                                            map_weights[i + N_cell * j + N_cell2 * k]);
             }
         }
     }
 
     fclose(tmp_file);
+
+    free(map_weights);
+    free(map);
 
     return;
 }

@@ -1,11 +1,11 @@
 # If " final link failed: nonrepresentable section on output" happens
 # uncomment line below and comment CC = gcc.
-# CC = gcc -fPIC
-CC = gcc  
+CC = gcc -fPIC
+#CC = gcc  
 
 default: libinterpolate.a
 
-libtspec.a: interpolate.o
+libinterpolate.a: interpolate.o
 	ar rcs $@ $^
     
 interpolate.o: interpolate.c interpolate.h 

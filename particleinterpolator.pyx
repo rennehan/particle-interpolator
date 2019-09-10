@@ -1,4 +1,4 @@
-cdef extern from "interpolator.h":
+cdef extern from "interpolate.h":
     void interpolate_to_grid(char tmp_file_name[],
                              double *pos_x,
                              double *pos_y,
