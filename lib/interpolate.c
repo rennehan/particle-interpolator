@@ -3,6 +3,30 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define SIZE 1.0
+#define HALF 0.5
+#define MIN 0.0
+
+void out_of_memory(char var_name[], long long bytes)
+{
+    printf("Out of memory for %s and %lli bytes.\n", var_name, bytes);
+    exit(-1);
+}
+
+double adjusted_difference(double difference)
+{
+    if (difference > HALF)
+    {
+        difference -= SIZE;
+    }
+    if (difference < -HALF)
+    {
+        difference += SIZE;
+    }
+
+    return difference;
+}
+
 double cubic_kernel(double u, double hinv3)
 {
     double wk;
@@ -45,35 +69,43 @@ void interpolate_to_grid(char tmp_file_name[],
                          int N_particles)
 {
     int i, j, k, l;
+    long long map_idx;
     double U[N_cell];
 
-    int N_cell2 = N_cell * N_cell;
-    double size = 1;
-    double min = 0;
-    double half = 0.5;
-    double delta = size / N_cell;
+    long long N_cell2 = N_cell * N_cell;
+    long long N_cell3 = N_cell2 * N_cell;
 
-    double *map = (double *)malloc(N_cell * N_cell * N_cell * sizeof(double));
-    double *map_weights = (double *)malloc(N_cell * N_cell * N_cell * sizeof(double));
+    double delta = SIZE / N_cell;
+
+    long long map_memory_bytes = N_cell3 * sizeof(double);
+
+    double *map = (double *)malloc(map_memory_bytes);
+    if (map == NULL)
+    {
+        out_of_memory("map", map_memory_bytes);
+    }
+
+    double *map_weights = (double *)malloc(map_memory_bytes);
+    if (map_weights == NULL)
+    {
+        out_of_memory("map_weights", map_memory_bytes);
+    }
+
+    printf("Allocated 2*%lli bytes.\n", map_memory_bytes);
 
     for (i = 0; i < N_cell; i++)
     {
-        U[i] = min + (i + 0.5) * delta;
+        U[i] = MIN + (i + 0.5) * delta;
+    }
 
-        for (j = 0; j < N_cell; j++)
-        {
-            for (k = 0; k < N_cell; k++)
-            {
-                map[i + N_cell * j + N_cell2 * k] = 0;
-                map_weights[i + N_cell * j * N_cell2 * k] = 0;
-            }
-        }
+    for (map_idx = 0; map_idx < N_cell3; map_idx++)
+    {
+        map[map_idx] = 0;
+        map_weights[map_idx] = 0;
     }
 
     printf("Loop over %d particles.\n", N_particles);
-    free(map_weights);
-    free(map);
-    exit(-1); 
+
     /* Important that we assume all coordinates are within [0,1] */
     for (i = 0; i < N_particles; i++)
     {
@@ -92,77 +124,139 @@ void interpolate_to_grid(char tmp_file_name[],
         int max_z = (int)((pos_z[i] + radii[i]) / delta);
         int min_z = (int)((pos_z[i] - radii[i]) / delta);
 
-        int total_cell_chunk = (max_x - min_x) + (max_y - min_y) + (max_z - min_z);
+        int num_x_cells = max_x - min_x + 1;
+        int num_y_cells = max_y - min_y + 1;
+        int num_z_cells = max_z - min_z + 1;
 
-        int deposit_x[total_cell_chunk], deposit_y[total_cell_chunk], deposit_z[total_cell_chunk];
-        double temp_weights[total_cell_chunk];
-        double sum_weights = 0;
+        long total_cell_chunk = (long)(num_x_cells * num_y_cells * num_z_cells);
+        long long chunk_memory_bytes = total_cell_chunk * sizeof(int);
 
-        double x_diff = 0, y_diff = 0, z_diff = 0;
-        int x_idx = 0, y_idx = 0, z_idx = 0;
+        int *deposit_x = (int *)malloc(chunk_memory_bytes);
+        if (deposit_x == NULL)
+        {
+            out_of_memory("deposit_x", chunk_memory_bytes);
+        }
 
+        int *deposit_y = (int *)malloc(chunk_memory_bytes);
+        if (deposit_y == NULL)
+        {
+            out_of_memory("deposit_y", chunk_memory_bytes);
+        }
+
+        int *deposit_z = (int *)malloc(chunk_memory_bytes);
+        if (deposit_z == NULL)
+        {
+            out_of_memory("deposit_z", chunk_memory_bytes);
+        }
+
+        double *temp_weights = (double *)malloc(total_cell_chunk * sizeof(double));
+        if (temp_weights == NULL)
+        {
+            out_of_memory("temp_weights", (long long)(total_cell_chunk * sizeof(double)));
+        }
+
+        long long x_int_bytes = (long long)(num_x_cells * sizeof(int));
+        long long x_double_bytes = (long long)(num_x_cells * sizeof(double));
+        long long y_int_bytes = (long long)(num_y_cells * sizeof(int));
+        long long y_double_bytes = (long long)(num_y_cells * sizeof(double));
+        long long z_int_bytes = (long long)(num_z_cells * sizeof(int));
+        long long z_double_bytes = (long long)(num_z_cells * sizeof(double));
+
+        int *x_indices = (int *)malloc(x_int_bytes);
+        if (x_indices == NULL)
+        {
+            out_of_memory("x_indices", x_int_bytes);
+        }
+
+        int *y_indices = (int *)malloc(y_int_bytes);
+        if (y_indices == NULL)
+        {
+            out_of_memory("y_indices", y_int_bytes);
+        }
+
+        int *z_indices = (int *)malloc(z_int_bytes);
+        if (z_indices == NULL)
+        {
+            out_of_memory("z_indices", z_int_bytes);
+        }
+
+        double *x_diffs = (double *)malloc(x_double_bytes);
+        if (x_diffs == NULL)
+        {
+            out_of_memory("x_diffs", x_double_bytes);
+        }
+
+        double *y_diffs = (double *)malloc(y_double_bytes);
+        if (y_diffs == NULL)
+        {
+            out_of_memory("y_diffs", y_double_bytes);
+        }
+
+        double *z_diffs = (double *)malloc(z_double_bytes);
+        if (z_diffs == NULL)
+        {
+            out_of_memory("z_diffs", z_double_bytes);
+        }
+
+        double distance = 0, sum_weights = 0;
         int running_idx = 0;
-
-        printf("Loop over map chunk.\n");
-
-        exit(-1);
 
         for (j = min_x; j <= max_x; j++)
         {
-            x_idx = real_idx(j, N_cell);
-            x_diff = pos_x[i] - U[x_idx];
+            x_indices[running_idx] = real_idx(j, N_cell);
+            x_diffs[running_idx] = adjusted_difference(pos_x[i] - U[x_indices[running_idx]]);
+            running_idx++;
+        }
 
-            if (x_diff > half)
+        running_idx = 0;
+
+        for (j = min_y; j <= max_y; j++)
+        {
+            y_indices[running_idx] = real_idx(j, N_cell);
+            y_diffs[running_idx] = adjusted_difference(pos_y[i] - U[y_indices[running_idx]]);
+            running_idx++;
+        }
+
+        running_idx = 0;
+
+        for (j = min_z; j <= max_z; j++)
+        {
+            z_indices[running_idx] = real_idx(j, N_cell);
+            z_diffs[running_idx] = adjusted_difference(pos_z[i] - U[z_indices[running_idx]]);
+            running_idx++;
+        }
+
+        running_idx = 0;
+
+        /**
+         * Loop over the 3D cube that could have possible contributions from the particle.
+         *
+         * We are saving computation by calculating the indices and differences above so
+         * here we only have to keep track of the running index in the one dimensional
+         * arrays above.
+         *
+         * For each cell, we calculate the distance from the particle to that cell. If the
+         * distance to the cell is less than the radius of the particle then we calculate
+         * the smoothed quantity at that grid cell and set the weight based on the kernel.
+         * Otherwise, the weight will be zero and nothing will be added.
+         */
+        for (j = 0; j < num_x_cells; j++)
+        {
+            for (k = 0; k < num_y_cells; k++)
             {
-                x_diff = pos_x[i] - size - U[x_idx];
-            }
-            if (x_diff < -half)
-            {
-                x_diff = pos_x[i] + size - U[x_idx];
-            }
-
-            for (k = min_y; k <= max_y; k++)
-            {
-                y_idx = real_idx(k, N_cell);
-                y_diff = pos_y[i] - U[y_idx];
-
-                if (y_diff > half)
+                for (l = 0; l < num_z_cells; l++)
                 {
-                    y_diff = pos_y[i] - size - U[y_idx];
-                }
-                if (y_diff < -half)
-                {
-                    y_diff = pos_y[i] + size - U[y_idx];
-                }
-
-                for (l = min_z; l <= max_z; l++)
-                {
-                    z_idx = real_idx(l, N_cell);
-                    z_diff = pos_z[i] - U[z_idx];
-
-                    if (z_diff > half)
-                    {
-                        z_diff = pos_z[i] - size - U[z_idx];
-                    }
-                    if (z_diff < -half)
-                    {
-                        z_diff = pos_z[i] + size - U[z_idx];
-                    }
-
-                    double distance = sqrt(x_diff * x_diff + y_diff * y_diff + z_diff * z_diff);
+                    distance = sqrt(x_diffs[j] * x_diffs[j] + y_diffs[k] * y_diffs[k] + z_diffs[l] * z_diffs[l]);
 
                     temp_weights[running_idx] = 0;
-                    deposit_x[running_idx] = 0;
-                    deposit_y[running_idx] = 0;
-                    deposit_z[running_idx] = 0;
+                    deposit_x[running_idx] = x_indices[j];
+                    deposit_y[running_idx] = y_indices[k];
+                    deposit_z[running_idx] = z_indices[l];
 
                     if (distance < radii[i])
                     {
                         temp_weights[running_idx] = cubic_kernel(distance / radii[i], 1.0 / (radii[i] * radii[i] * radii[i]));
                         sum_weights += temp_weights[running_idx];
-                        deposit_x[running_idx] = U[x_idx] / delta;
-                        deposit_y[running_idx] = U[y_idx] / delta;
-                        deposit_z[running_idx] = U[z_idx] / delta;
                     }
 
                     running_idx++;
@@ -170,20 +264,31 @@ void interpolate_to_grid(char tmp_file_name[],
             }
         }
 
-        printf("Add quantities to map.\n");
+        double wk;
+        double true_weight;
 
         /* Add quantites to the chunk of cells where they belong */
         for (j = 0; j < running_idx; j++)
         {
-            /* It's fine if it's adding to 0 by default because temp_weights == 0 in that case */
-            x_idx = deposit_x[j];
-            y_idx = deposit_y[j];
-            z_idx = deposit_z[j];
+            wk = temp_weights[j] / sum_weights;
+            true_weight = weights[i] * wk;
 
-            
-            map[x_idx + N_cell * y_idx + N_cell2 * z_idx]  += weights[i] * quantities[i] * temp_weights[j];
-            map_weights[x_idx + N_cell * y_idx + N_cell2 * z_idx] += weights[i] * temp_weights[j];
-        }    
+            map_idx = N_cell2 * deposit_x[j] + N_cell * deposit_y[j] + deposit_z[j];
+   
+            map[map_idx] += quantities[i] * true_weight;
+            map_weights[map_idx] += true_weight;
+        }
+
+        free(z_diffs);
+        free(y_diffs);
+        free(x_diffs);
+        free(z_indices);
+        free(y_indices);
+        free(x_indices);
+        free(temp_weights);
+        free(deposit_z);
+        free(deposit_y);
+        free(deposit_x); 
     }
 
     printf("Write to file.\n");
@@ -197,21 +302,9 @@ void interpolate_to_grid(char tmp_file_name[],
         exit(-1);
     }
 
-    for (i = 0; i < N_cell; i++)
+    for (map_idx = 0; map_idx < N_cell3; map_idx++)
     {
-        for (j = 0; j < N_cell; j++)
-        {
-            for (k = 0; k < N_cell; k++)
-            {
-                if (map[i + N_cell * j + N_cell2 * k] == 0)
-                {
-                    continue;
-                }
-
-                fprintf(tmp_file, "%d\t%d\t%d\t%g\t%g\n", i, j, k, map[i + N_cell * j + N_cell2 * k], 
-                                                            map_weights[i + N_cell * j + N_cell2 * k]);
-            }
-        }
+        fprintf(tmp_file, "%g\t%g\n", map[map_idx], map_weights[map_idx]);
     }
 
     fclose(tmp_file);
