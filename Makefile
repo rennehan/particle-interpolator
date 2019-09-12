@@ -9,4 +9,4 @@ $(LIB_DIR)/libinterpolate.a:
 	make -C $(LIB_DIR) libinterpolate.a
 
 clean:
-	rm *.so
+	rm ./lib/*.o ./lib/*.a

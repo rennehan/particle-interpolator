@@ -1,55 +1,54 @@
 import particleinterpolator
 import numpy as np
 import matplotlib.pyplot as plt
+import argparse as ap
+
+
+parser = ap.ArgumentParser()
+parser.add_argument('--generate', help = 'Generate the projection.', action = 'store_true')
+parser.add_argument('--plot', help = 'Plot the resulting slice as a test.', action = 'store_true')
+args = parser.parse_args()
 
 # N_cell in the grid
 N = 128
+N_part = 3
 
-# Number of fake particles in 1D
-N_part_1d = 64
+if args.generate:
+    h = 0.4
 
-# Smoothing length of particles
-h = 5.0 / N_part_1d
+    x = np.array([0.25, 0.75], dtype = float)
+    y = np.array([0.5, 0.5], dtype = float)
+    z = np.array([0.5, 0.5], dtype = float)
 
-N_part = N_part_1d**3
+    # Radii, quantity to deposit, weights
+    r = h * np.ones(N_part, dtype = float)
+    q = np.ones(N_part, dtype = float)
+    w = np.ones(N_part, dtype = float)
 
-# Coordinates
-x = np.array(np.random.uniform(size = N_part), dtype = float)
-y = np.array(np.random.uniform(size = N_part), dtype = float)
-z = np.array(np.random.uniform(size = N_part), dtype = float)
+    particleinterpolator.interpolate(b'test.dat', x, y, z, r, q, w, N)
 
-# Radii, quantity to deposit, weights
-r = h * np.ones(N_part, dtype = float)
-q = np.ones(N_part, dtype = float)
-w = np.ones(N_part, dtype = float)
+if args.plot:
+    # Plot result
+    slice_num = 64
 
-x = x.flatten()
-y = y.flatten()
-z = z.flatten()
+    data = np.loadtxt('test.dat')
 
-particleinterpolator.interpolate(b'test.dat', x, y, z, r, q, w, N)
+    values = data[:, 0]
 
+    indices = np.arange(0, len(values))
 
-# Plot result
-slice_num = 0
+    x_indices = np.array(indices / N**2, dtype = int)
+    y_indices = np.array((indices % N**2) / N, dtype = int)
+    z_indices = np.array(indices - y_indices * N - x_indices * N**2, dtype = int)
 
-data = np.loadtxt('test.dat')
+    matrix = np.zeros((N, N, N), dtype = float)
 
-values = data[:, 0]
+    for i, map_value in enumerate(values):
+        matrix[x_indices[i]][y_indices[i]][z_indices[i]] = map_value
 
-indices = np.arange(0, len(values))
+    plt.figure(figsize = (8, 8), dpi = 90)
+    plt.imshow(matrix[:, slice_num, :], cmap = 'afmhot')
+    plt.savefig('test.png')
+    plt.close()
 
-x_indices = np.array(indices / N**2, dtype = int)
-y_indices = np.array((indices % N**2) / N, dtype = int)
-z_indices = np.array(indices - y_indices * N - x_indices * N**2, dtype = int)
-
-matrix = np.zeros((N, N, N), dtype = float)
-
-for i, map_value in enumerate(values):
-    matrix[x_indices[i]][y_indices[i]][z_indices[i]] = map_value
-
-plt.figure(figsize = (8, 8), dpi = 90)
-plt.imshow(matrix[:, :, slice_num], cmap = 'afmhot')
-plt.savefig('test.png')
-plt.close()
 
