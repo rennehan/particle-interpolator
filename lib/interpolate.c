@@ -296,15 +296,23 @@ void interpolate_to_grid(char tmp_file_name[],
     /* Now we find all of the non-zero entries and write them to a temporary file */
     FILE * tmp_file;
 
-    if ((tmp_file = fopen(tmp_file_name, "w")) == NULL)
+    if ((tmp_file = fopen(tmp_file_name, "wb")) == NULL)
     {
         printf("Cannot open temporary file %s\n", tmp_file_name);
         exit(-1);
     }
 
+    /* Write a single number indicating the grid size */
+    fwrite(N_cell3, sizeof(N_cell3), 1, tmp_file);
     for (map_idx = 0; map_idx < N_cell3; map_idx++)
     {
-        fprintf(tmp_file, "%g\t%g\n", map[map_idx], map_weights[map_idx]);
+        
+        fwrite(&map[map_idx], sizeof(*map), 1, tmp_file);
+    }
+
+    for (map_idx = 0; map_idx < N_cell3; map_idx++)
+    {
+        fwrite(&map_weights[map_idx], sizeof(*map_weights), 1, tmp_file);
     }
 
     fclose(tmp_file);
