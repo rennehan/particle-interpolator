@@ -303,17 +303,9 @@ void interpolate_to_grid(char tmp_file_name[],
     }
 
     /* Write a single number indicating the grid size */
-    fwrite(N_cell3, sizeof(N_cell3), 1, tmp_file);
-    for (map_idx = 0; map_idx < N_cell3; map_idx++)
-    {
-        
-        fwrite(&map[map_idx], sizeof(*map), 1, tmp_file);
-    }
-
-    for (map_idx = 0; map_idx < N_cell3; map_idx++)
-    {
-        fwrite(&map_weights[map_idx], sizeof(*map_weights), 1, tmp_file);
-    }
+    fwrite(&N_cell, sizeof(int), 1, tmp_file);
+    fwrite(map, sizeof(double), N_cell3, tmp_file);
+    fwrite(map_weights, sizeof(double), N_cell3, tmp_file);
 
     fclose(tmp_file);
 
