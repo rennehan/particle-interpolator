@@ -240,6 +240,23 @@ void interpolate_to_grid(char tmp_file_name[],
          * the smoothed quantity at that grid cell and set the weight based on the kernel.
          * Otherwise, the weight will be zero and nothing will be added.
          */
+        if (num_x_cells == 1 && num_y_cells == 1 && num_z_cells == 1)
+        {
+            /* All of the contribution in the one cell */
+            temp_weights[0] = 1.0;
+            deposit_x[0] = x_indices[0];
+            deposit_y[0] = y_indices[0];
+            deposit_z[0] = z_indices[0];
+
+            sum_weights += 1.0;
+            running_idx++;
+
+            /* Skip the loop, it only contributes to one cell completely */
+            num_x_cells = 0;
+            num_y_cells = 0;
+            num_z_cells = 0;
+        }
+
         for (j = 0; j < num_x_cells; j++)
         {
             for (k = 0; k < num_y_cells; k++)
